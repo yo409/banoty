@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Love Heart</title>
+<style>
+:root{--bg:#161616;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161616}}
+:root[data-theme="dark"]{--bg:#161616}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0}
+body{background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const W=700,H=650,CX=W/2,CY=H/2+10,K=15.6;
+const NAME="I love you Berry";
+const MONO='"Courier New",ui-monospace,Menlo,Consolas,monospace';
+const SANS='"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif';
+
+// Heart outline
+const heart=new Path2D();
+for(let i=0;i<=240;i++){
+  const a=i/240*Math.PI*2;
+  const x=16*Math.sin(a)**3;
+  const y=13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a);
+  const px=CX+x*K, py=CY-(y+2.5)*K;
+  i?heart.lineTo(px,py):heart.moveTo(px,py);
+}
+heart.closePath();
+
+// Rows of repeating "i love you" that slide sideways, alternating direction
+const m=document.createElement("canvas").getContext("2d");
+const rows=[], unit="i love you   ";
+for(let y=100,r=0;y<575;y+=12.5,r++){
+  const size=11+Math.floor(Math.random()*3);
+  m.font=`700 ${size}px ${MONO}`;
+  const uw=m.measureText(unit).width;
+  rows.push({y,size,uw,str:unit.repeat(Math.ceil(W/uw)+2),
+    dir:r%2?1:-1,sp:12+Math.random()*16,off:Math.random()*uw,ph:Math.random()*6.283});
+}
+
+const cv=document.getElementById("c"),ctx=cv.getContext("2d");
+let sc=1,dpr=1;
+function resize(){
+  const w=document.body.clientWidth,h=document.body.clientHeight;
+  sc=Math.min(w/W,h/H);dpr=window.devicePixelRatio||1;
+  cv.style.width=W*sc+"px";cv.style.height=H*sc+"px";
+  cv.width=Math.round(W*sc*dpr);cv.height=Math.round(H*sc*dpr);
+}
+window.addEventListener("resize",resize);resize();
+
+function draw(ms){
+  const t=ms/1000;
+  ctx.setTransform(sc*dpr,0,0,sc*dpr,0,0);
+
+  // Background with soft vignette
+  const bg=ctx.createRadialGradient(CX,CY,40,CX,CY,430);
+  bg.addColorStop(0,"#5b4b4d");bg.addColorStop(1,"#161616");
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  // Heartbeat
+  const beat=1+.035*Math.pow(Math.abs(Math.sin(t*1.6)),8);
+  ctx.save();
+  ctx.translate(CX,CY);ctx.scale(beat,beat);ctx.translate(-CX,-CY);
+
+  // Red glow behind the heart
+  ctx.shadowColor="rgba(255,40,50,.9)";ctx.shadowBlur=60;
+  ctx.fillStyle="rgba(120,10,25,.55)";ctx.fill(heart);
+  ctx.shadowBlur=0;
+
+  // Text rows clipped to the heart, hot yellow in the middle, red at the edges
+  ctx.save();ctx.clip(heart);
+  const g=ctx.createRadialGradient(CX,CY-30,10,CX,CY-30,270);
+  g.addColorStop(0,"#ffe08f");g.addColorStop(.3,"#ffa14d");
+  g.addColorStop(.65,"#ff3a42");g.addColorStop(1,"#d1122b");
+  ctx.fillStyle=g;ctx.textBaseline="middle";ctx.textAlign="left";
+  for(const r of rows){
+    ctx.font=`700 ${r.size}px ${MONO}`;
+    ctx.globalAlpha=.75+.25*Math.sin(t*2+r.ph);
+    const o=(((r.off+t*r.sp*r.dir)%r.uw)+r.uw)%r.uw;
+    ctx.fillText(r.str,-o-r.uw,r.y);
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+
+  // Glowing outline
+  ctx.strokeStyle="rgba(255,150,90,.8)";ctx.lineWidth=2;
+  ctx.shadowColor="rgba(255,60,60,1)";ctx.shadowBlur=18;
+  ctx.stroke(heart);ctx.shadowBlur=0;
+  ctx.restore();
+
+  // Name in the middle
+  const p=.5+.5*Math.sin(t*3.2);
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.font=`700 34px ${SANS}`;
+  ctx.shadowColor="rgba(255,50,60,.95)";ctx.shadowBlur=14+14*p;
+  ctx.fillStyle="#fff";
+  ctx.fillText(NAME,CX,CY-20+3*Math.sin(t*1.4));
+  ctx.shadowBlur=0;
+
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
